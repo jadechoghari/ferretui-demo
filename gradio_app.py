@@ -6,7 +6,7 @@ import time
 
 import gradio as gr
 import requests
-
+from inference import inference_and_run
 from conversation import (default_conversation, conv_templates,
                                    SeparatorStyle)
 
@@ -37,14 +37,16 @@ def get_conv_log_filename():
 
 
 def get_model_list():
-    ret = requests.post(args.controller_url + "/refresh_all_workers")
-    assert ret.status_code == 200
-    ret = requests.post(args.controller_url + "/list_models")
-    models = ret.json()["models"]
-    models.sort(key=lambda x: priority.get(x, x))
+    # ret = requests.post(args.controller_url + "/refresh_all_workers")
+    # assert ret.status_code == 200
+    # ret = requests.post(args.controller_url + "/list_models")
+    # models = ret.json()["models"]
+    # models.sort(key=lambda x: priority.get(x, x))
+    # logger.info(f"Models: {models}")
+    # return models
+    models = ["jadechoghari/Ferret-UI-Gemma2b"]
     logger.info(f"Models: {models}")
     return models
-
 
 get_window_url_params = """
 function() {
@@ -57,7 +59,6 @@ function() {
 
 
 def load_demo(url_params, request: gr.Request):
-    logger.info(f"load_demo. ip: {request.client.host}. params: {url_params}")
 
     dropdown_update = gr.Dropdown(visible=True)
     if "model" in url_params:
@@ -70,7 +71,6 @@ def load_demo(url_params, request: gr.Request):
 
 
 def load_demo_refresh_model_list(request: gr.Request):
-    logger.info(f"load_demo. ip: {request.client.host}")
     models = get_model_list()
     state = default_conversation.copy()
     dropdown_update = gr.Dropdown(
@@ -93,25 +93,21 @@ def vote_last_response(state, vote_type, model_selector, request: gr.Request):
 
 
 def upvote_last_response(state, model_selector, request: gr.Request):
-    logger.info(f"upvote. ip: {request.client.host}")
     vote_last_response(state, "upvote", model_selector, request)
     return ("",) + (disable_btn,) * 3
 
 
 def downvote_last_response(state, model_selector, request: gr.Request):
-    logger.info(f"downvote. ip: {request.client.host}")
     vote_last_response(state, "downvote", model_selector, request)
     return ("",) + (disable_btn,) * 3
 
 
 def flag_last_response(state, model_selector, request: gr.Request):
-    logger.info(f"flag. ip: {request.client.host}")
     vote_last_response(state, "flag", model_selector, request)
     return ("",) + (disable_btn,) * 3
 
 
 def regenerate(state, image_process_mode, request: gr.Request):
-    logger.info(f"regenerate. ip: {request.client.host}")
     state.messages[-1][-1] = None
     prev_human_msg = state.messages[-2]
     if type(prev_human_msg[1]) in (tuple, list):
@@ -121,13 +117,11 @@ def regenerate(state, image_process_mode, request: gr.Request):
 
 
 def clear_history(request: gr.Request):
-    logger.info(f"clear_history. ip: {request.client.host}")
     state = default_conversation.copy()
     return (state, state.to_gradio_chatbot(), "", None) + (disable_btn,) * 5
 
 
 def add_text(state, text, image, image_process_mode, request: gr.Request):
-    logger.info(f"add_text. ip: {request.client.host}. len: {len(text)}")
     if len(text) <= 0 and image is None:
         state.skip_next = True
         return (state, state.to_gradio_chatbot(), "", None) + (no_change_btn,) * 5
@@ -153,7 +147,6 @@ def add_text(state, text, image, image_process_mode, request: gr.Request):
 
 
 def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request: gr.Request):
-    logger.info(f"http_bot. ip: {request.client.host}")
     start_tstamp = time.time()
     model_name = model_selector
 
@@ -206,18 +199,20 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
         new_state.append_message(new_state.roles[1], None)
         state = new_state
 
-    # Query worker address
-    controller_url = args.controller_url
-    ret = requests.post(controller_url + "/get_worker_address",
-            json={"model": model_name})
-    worker_addr = ret.json()["address"]
-    logger.info(f"model_name: {model_name}, worker_addr: {worker_addr}")
+    # # Query worker address
+    # controller_url = args.controller_url
+    # ret = requests.post(controller_url + "/get_worker_address",
+    #         json={"model": model_name})
+    # worker_addr = ret.json()["address"]
+    # logger.info(f"model_name: {model_name}, worker_addr: {worker_addr}")
 
-    # No available worker
-    if worker_addr == "":
-        state.messages[-1][-1] = server_error_msg
-        yield (state, state.to_gradio_chatbot(), disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
-        return
+  
+
+    # # No available worker
+    # if worker_addr == "":
+    #     state.messages[-1][-1] = server_error_msg
+    #     yield (state, state.to_gradio_chatbot(), disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
+    #     return
 
     # Construct prompt
     prompt = state.get_prompt()
@@ -250,8 +245,22 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
 
     try:
         # Stream output
-        response = requests.post(worker_addr + "/worker_generate_stream",
-            headers=headers, json=pload, stream=True, timeout=10)
+        # response = requests.post(worker_addr + "/worker_generate_stream",
+        #     headers=headers, json=pload, stream=True, timeout=10)
+        stop = state.sep if state.sep_style in [SeparatorStyle.SINGLE, SeparatorStyle.MPT] else state.sep2
+        #TODO: define inference and run function
+        results, extracted_texts = inference_and_run(
+        image_path=all_image_hash[0], # double check this
+        prompt=prompt,
+        model_path=model_name,
+        conv_mode="ferret_gemma_instruct",  # Default mode from the original function
+        temperature=temperature, 
+        top_p=top_p,
+        max_new_tokens=max_new_tokens,
+        stop=stop    # Assuming we want to process the image
+        )
+        response = extracted_texts
+        logger.info(f"This is the respone {response}")
         for chunk in response.iter_lines(decode_unicode=False, delimiter=b"\0"):
             if chunk:
                 data = json.loads(chunk.decode())
