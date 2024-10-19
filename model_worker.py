@@ -18,7 +18,7 @@ from functools import partial
 from constants import WORKER_HEART_BEAT_INTERVAL
 from utils import (build_logger, server_error_msg,
                             pretty_print_semaphore)
-from model.builder import load_pretrained_model
+from builder import load_pretrained_model
 from mm_utils import process_images, load_image_from_base64, tokenizer_image_token
 from constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from transformers import TextIteratorStreamer
