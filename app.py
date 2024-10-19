@@ -454,8 +454,7 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, refer_in
         prompt=prompt,
         model_path=model_name,
         conv_mode="ferret_gemma_instruct",  # Default mode from the original function
-        process_image=True,
-         temperature=temperature, 
+        temperature=temperature, 
         top_p=top_p,
         max_new_tokens=max_new_tokens,
         stop=stop    # Assuming we want to process the image
