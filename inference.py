@@ -39,7 +39,7 @@ def process_inference_results(results, process_image=False):
 
     return extracted_texts
 
-def inference_and_run(image_path, prompt, conv_mode="ferret_gemma_instruct", model_path="jadechoghari/Ferret-UI-Gemma2b", box=None, process_image=False):
+def inference_and_run(image_path, prompt, conv_mode="ferret_gemma_instruct", model_path="jadechoghari/Ferret-UI-Gemma2b", box=None, process_image=False, temperature, top_p, max_new_tokens, stop):
     """
     Run the inference and capture the errors for debugging.
     """
@@ -66,7 +66,9 @@ def inference_and_run(image_path, prompt, conv_mode="ferret_gemma_instruct", mod
         "--image_path", ".", 
         "--answers_file", "eval_output.jsonl", 
         "--num_beam", "1", 
-        "--max_new_tokens", "32",
+        "--temperature", temperature,
+        "--top_p", top_p,
+        "--max_new_tokens", max_new_tokens,
         "--conv_mode", conv_mode
     ]
 
